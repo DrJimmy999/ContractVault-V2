@@ -115,13 +115,14 @@ export default function Contracts({ profile }) {
   async function saveEdit() {
     setSaving(true); setSaveMsg(null)
     try {
-      const { data: updated, error } = await supabase
+      const { data, error } = await supabase
         .from('contracts')
         .update(editData)
         .eq('id', detail.id)
         .select()
-        .single()
       if (error) throw new Error(error.message)
+      const updated = data?.[0]
+      if (!updated) throw new Error('No data returned after save')
       updateContract(updated)
       setDetail(updated)
       setEditing(false)
@@ -348,4 +349,5 @@ export default function Contracts({ profile }) {
     </div>
   )
 }
+
 
