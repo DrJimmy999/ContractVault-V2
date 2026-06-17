@@ -38,7 +38,7 @@ function EditField({ label, value, onChange, type = 'text', urgent }) {
 }
 
 export default function Contracts({ profile }) {
-  const { contracts, users, loadContracts, loadUsers, updateContract, removeContract } = useData()
+  const { contracts, users, loadContracts, loadUsers, updateContract, removeContract, contractsLoaded } = useData()
   const [detail, setDetail]       = useState(null)
   const [editing, setEditing]     = useState(false)
   const [editData, setEditData]   = useState({})
@@ -54,15 +54,15 @@ export default function Contracts({ profile }) {
   }, [])
 
   const isOwner  = profile.role === 'owner'
-  const base     = (contracts || []).filter(c => !isOwner || c.owner_id === profile.id)
+  const base     = contracts.filter(c => !isOwner || c.owner_id === profile.id)
   const filtered = base.filter(c => {
     const mq = !search || (c.contract_name||'').toLowerCase().includes(search.toLowerCase()) || (c.counterparty||'').toLowerCase().includes(search.toLowerCase())
     const mo = !ownerFilter || c.owner_id === ownerFilter
     return mq && mo
   })
 
-  const ownerUser = id => (users || []).find(u => u.id === id)
-  const ownerIdx  = id => (users || []).findIndex(u => u.id === id)
+  const ownerUser = id => users.find(u => u.id === id)
+  const ownerIdx  = id => users.findIndex(u => u.id === id)
   const canDelete = c => profile.role === 'admin' || c.owner_id === profile.id
   const canEdit   = c => profile.role === 'admin' || c.owner_id === profile.id
 
@@ -141,7 +141,7 @@ export default function Contracts({ profile }) {
     setDeleting(false)
   }
 
-  if (contracts === null) return <div className="empty-state"><span className="spin">⟳</span></div>
+  if (!contractsLoaded) return <div className="empty-state"><span className="spin">⟳</span></div>
 
   // ── Detail view ───────────────────────────────────────────
   if (detail) {
@@ -348,3 +348,4 @@ export default function Contracts({ profile }) {
     </div>
   )
 }
+
