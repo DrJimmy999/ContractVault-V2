@@ -216,26 +216,64 @@ export default function Upload({ setActiveTab, profile }) {
       {step === 4 && extracted && (
         <div className="card-inner">
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:6 }}>
-            <div style={{ fontSize:14, fontWeight:600 }}>✨ AI extraction complete</div>
+            <div style={{ fontSize:14, fontWeight:600 }}>✨ AI extraction complete — review and edit before saving</div>
             <span className={`badge ${extracted.confidence === 'High' ? 'b-ok' : extracted.confidence === 'Low' ? 'b-urg' : 'b-warn'}`}>
               {extracted.confidence} confidence
             </span>
           </div>
-          <div style={{ fontSize:12, color:'var(--muted)', marginBottom:4 }}>Extracted from: <strong>{filename}</strong></div>
+          <div style={{ fontSize:12, color:'var(--muted)', marginBottom:10 }}>
+            Extracted from: <strong>{filename}</strong> · Edit any fields that need correcting before saving.
+          </div>
 
           <div className="eg">
-            {[['Counterparty', extracted.counterparty], ['Contract type', extracted.contractType],
-              ['Total value', formatValueAED(extracted.totalValue)], ['Payment terms', extracted.paymentTerms],
-              ['Start date', extracted.startDate], ['Expiry date', extracted.expiryDate],
-              ['Notice period', extracted.noticePeriod]].map(([label, val]) => (
-              <div key={label} className="ef"><div className="el">{label}</div><div className="ev">{val || '—'}</div></div>
+            {[
+              ['Counterparty',  'counterparty', 'text'],
+              ['Contract type', 'contractType', 'text'],
+              ['Total value',   'totalValue',   'text'],
+              ['Payment terms', 'paymentTerms', 'text'],
+              ['Start date',    'startDate',    'date'],
+              ['Expiry date',   'expiryDate',   'date'],
+              ['Notice period', 'noticePeriod', 'text'],
+            ].map(([label, field, type]) => (
+              <div key={field} className="ef">
+                <div className="el">{label}</div>
+                <input type={type} value={extracted[field] || ''}
+                  onChange={e => {
+                    const updated = { ...extracted, [field]: e.target.value }
+                    if (field === 'expiryDate' || field === 'noticePeriod') {
+                      const dl = computeNoticeDeadline(
+                        field === 'expiryDate' ? e.target.value : extracted.expiryDate,
+                        field === 'noticePeriod' ? e.target.value : extracted.noticePeriod
+                      )
+                      if (dl) updated.noticeDeadline = dl
+                    }
+                    setExtracted(updated)
+                  }}
+                  style={{ fontSize:13, fontWeight:500, padding:'4px 6px', marginTop:2, background:'white', width:'100%' }}
+                />
+              </div>
             ))}
             <div className="ef" style={{ background:'var(--red-bg)' }}>
               <div className="el" style={{ color:'var(--red)' }}>Notice deadline</div>
-              <div className="ev" style={{ color:'var(--red)' }}>{extracted.noticeDeadline ? new Date(extracted.noticeDeadline).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' }) : '—'}</div>
+              <input type="date" value={extracted.noticeDeadline || ''}
+                onChange={e => setExtracted({ ...extracted, noticeDeadline: e.target.value })}
+                style={{ fontSize:13, fontWeight:500, padding:'4px 6px', marginTop:2, color:'var(--red)', background:'var(--red-bg)', width:'100%' }}
+              />
             </div>
           </div>
-          <div className="notes-box">{extracted.notes || '—'}</div>
+
+          <div className="frow" style={{ marginTop:10 }}>
+            <label>Notes</label>
+            <textarea value={extracted.notes || ''} rows={2}
+              onChange={e => setExtracted({ ...extracted, notes: e.target.value })}
+              style={{ fontSize:13 }} />
+          </div>
+          <label style={{ display:'flex', alignItems:'center', gap:6, cursor:'pointer', fontSize:13, marginBottom:12 }}>
+            <input type="checkbox" checked={extracted.autoRenewal || false}
+              onChange={e => setExtracted({ ...extracted, autoRenewal: e.target.checked })}
+              style={{ width:'auto' }} />
+            Auto-renewal clause
+          </label>
 
           {costSummary && (
             <div className="cost-box">
@@ -254,15 +292,16 @@ export default function Upload({ setActiveTab, profile }) {
               <label>Contract owner</label>
               <select value={owner} onChange={e => setOwner(e.target.value)} disabled={profile.role === 'owner'}>
                 <option value="">— Select owner —</option>
-                {users.filter(u => u.role === 'owner' || u.role === 'admin').map(u => (
+                {(users||[]).filter(u => u.role === 'owner' || u.role === 'admin').map(u => (
                   <option key={u.id} value={u.id}>{u.name}</option>
                 ))}
               </select>
             </div>
             <div className="frow">
               <label>Additional reminder recipients</label>
-              <select multiple style={{ height:72 }} value={recipients} onChange={e => setRecipients(Array.from(e.target.selectedOptions, o => o.value))}>
-                {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+              <select multiple style={{ height:72 }} value={recipients}
+                onChange={e => setRecipients(Array.from(e.target.selectedOptions, o => o.value))}>
+                {(users||[]).map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
               </select>
             </div>
           </div>
