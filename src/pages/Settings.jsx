@@ -44,7 +44,8 @@ function UsersPanel({ profile }) {
 
   async function removeUser(id) {
     if (!window.confirm('Remove this user? They will no longer be able to sign in.')) return
-    await supabase.from('cv_users').delete().eq('id', id)
+    const { error } = await supabase.from('cv_users').delete().eq('id', id)
+    if (error) { alert('Error removing user: ' + error.message); return }
     setUsers(prev => prev.filter(u => u.id !== id))
   }
 
@@ -93,27 +94,26 @@ function AddUserPanel({ setSP }) {
     if (!email.endsWith('@dubicars.com')) { setStatus({ ok:false, msg:'Only @dubicars.com email addresses are allowed.' }); return }
     setSending(true); setStatus(null)
     try {
-      // Check if user already exists
-      const { data: existing } = await supabase.from('cv_users').select('id').eq('email', email).single()
-      if (existing) { setStatus({ ok:false, msg:'A user with this email already exists.' }); setSending(false); return }
+      // Remove any existing record for this email (pending or otherwise) before re-adding
+      await supabase.from('cv_users').delete().eq('email', email)
 
-      // Insert user record
+      // Insert fresh user record
       const { error: insertErr } = await supabase.from('cv_users').insert({
         name, email, role, status: 'pending', created_at: new Date().toISOString()
       })
       if (insertErr) throw new Error(insertErr.message)
 
-      // Send magic link via Supabase Auth
-const { error: authErr } = await supabase.auth.signInWithOtp({
-  email,
-  options: {
-    emailRedirectTo: window.location.origin,
-    data: { name, role }
-  }
-})
+      // Send magic link
+      const { error: authErr } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          emailRedirectTo: window.location.origin,
+          data: { name, role }
+        }
+      })
+      if (authErr) throw new Error(authErr.message)
 
-      setStatus({ ok: true, msg: `✓ ${name} added and sign-in link sent to ${email}` })
-     
+      setStatus({ ok:true, msg:`✓ ${name} added and sign-in link sent to ${email}` })
       setName(''); setEmail(''); setRole('owner')
     } catch (e) {
       setStatus({ ok:false, msg:'Error: ' + e.message })
