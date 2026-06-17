@@ -1,6 +1,6 @@
 // src/pages/Dashboard.jsx
-import { useState, useEffect } from 'react'
-import { supabase } from '../supabase'
+import { useEffect } from 'react'
+import { useData } from '../context/DataContext'
 import { daysUntil, formatValueAED, totalInAED, fmtDate } from '../utils/helpers'
 
 function StatusBadge({ contract }) {
@@ -13,32 +13,20 @@ function StatusBadge({ contract }) {
 }
 
 export default function Dashboard({ setActiveTab, profile }) {
-  const [contracts, setContracts] = useState([])
-  const [users, setUsers]         = useState([])
-  const [loading, setLoading]     = useState(true)
+  const { contracts, users, loadContracts, loadUsers, loadingContracts } = useData()
 
   useEffect(() => {
-    loadData()
+    loadContracts()
+    loadUsers()
   }, [])
 
-  async function loadData() {
-    setLoading(true)
-    const [{ data: c }, { data: u }] = await Promise.all([
-      supabase.from('contracts').select('*').order('created_at', { ascending: false }),
-      supabase.from('cv_users').select('*')
-    ])
-    setContracts(c || [])
-    setUsers(u || [])
-    setLoading(false)
-  }
-
   const isOwner   = profile.role === 'owner'
-  const visible   = isOwner ? contracts.filter(c => c.owner_id === profile.id) : contracts
+  const visible   = (contracts || []).filter(c => !isOwner || c.owner_id === profile.id)
   const urgent    = visible.filter(c => { const d = daysUntil(c.notice_deadline); return d !== null && d >= 0 && d <= 90 })
   const aedTotal  = Math.round(totalInAED(visible))
-  const ownerName = id => users.find(u => u.id === id)?.name || '—'
+  const ownerName = id => (users || []).find(u => u.id === id)?.name || '—'
 
-  if (loading) return <div className="empty-state"><div className="spin">⟳</div></div>
+  if (loadingContracts || contracts === null) return <div className="empty-state"><span className="spin">⟳</span></div>
 
   return (
     <div>

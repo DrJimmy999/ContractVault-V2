@@ -1,6 +1,7 @@
 // src/App.jsx
 import { useState, useEffect } from 'react'
 import { supabase } from './supabase'
+import { DataProvider } from './context/DataContext'
 import Dashboard from './pages/Dashboard'
 import Upload from './pages/Upload'
 import Contracts from './pages/Contracts'
@@ -83,42 +84,44 @@ export default function App() {
   const [bg, fg] = AV_COLORS[0]
 
   return (
-    <div>
-      <nav className="nav">
-        <div className="nav-left" style={{ display:'flex', alignItems:'center', gap:20 }}>
-          <div className="brand">
-            <svg width="20" height="20" viewBox="0 0 40 40" fill="none">
-              <rect width="40" height="40" rx="8" fill="rgba(255,255,255,0.15)"/>
-              <path d="M10 28V14l10-4 10 4v14l-10 4-10-4z" stroke="rgba(255,255,255,0.9)" strokeWidth="2" fill="none"/>
-              <path d="M20 10v18M10 14l10 4 10-4" stroke="rgba(255,255,255,0.9)" strokeWidth="2"/>
-            </svg>
-            ContractVault
+    <DataProvider>
+      <div>
+        <nav className="nav">
+          <div className="nav-left" style={{ display:'flex', alignItems:'center', gap:20 }}>
+            <div className="brand">
+              <svg width="20" height="20" viewBox="0 0 40 40" fill="none">
+                <rect width="40" height="40" rx="8" fill="rgba(255,255,255,0.15)"/>
+                <path d="M10 28V14l10-4 10 4v14l-10 4-10-4z" stroke="rgba(255,255,255,0.9)" strokeWidth="2" fill="none"/>
+                <path d="M20 10v18M10 14l10 4 10-4" stroke="rgba(255,255,255,0.9)" strokeWidth="2"/>
+              </svg>
+              ContractVault
+            </div>
+            <div className="nav-tabs">
+              {tabs.map(t => (
+                <button key={t.id} className={`nt${activeTab === t.id ? ' active' : ''}`} onClick={() => setActiveTab(t.id)}>
+                  {t.label}
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="nav-tabs">
-            {tabs.map(t => (
-              <button key={t.id} className={`nt${activeTab === t.id ? ' active' : ''}`} onClick={() => setActiveTab(t.id)}>
-                {t.label}
-              </button>
-            ))}
+          <div className="nav-right">
+            <div className="nav-user">
+              <div className="nav-av">{initials(profile.name)}</div>
+              <span>{profile.name}</span>
+              <span className={`nav-role-badge`}>{role.label}</span>
+            </div>
+            <button className="btn btn-sm" style={{ background:'rgba(255,255,255,0.12)', color:'#fff', border:'0.5px solid rgba(255,255,255,0.2)', fontSize:12 }}
+              onClick={() => supabase.auth.signOut()}>Sign out</button>
           </div>
+        </nav>
+        <div className="page">
+          {activeTab === 'dash'      && <Dashboard setActiveTab={setActiveTab} profile={profile} />}
+          {activeTab === 'upload'    && canUpload && <Upload setActiveTab={setActiveTab} profile={profile} />}
+          {activeTab === 'contracts' && <Contracts profile={profile} />}
+          {activeTab === 'settings'  && isAdmin && <Settings profile={profile} />}
         </div>
-        <div className="nav-right">
-          <div className="nav-user">
-            <div className="nav-av">{initials(profile.name)}</div>
-            <span>{profile.name}</span>
-            <span className={`nav-role-badge`}>{role.label}</span>
-          </div>
-          <button className="btn btn-sm" style={{ background:'rgba(255,255,255,0.12)', color:'#fff', border:'0.5px solid rgba(255,255,255,0.2)', fontSize:12 }}
-            onClick={() => supabase.auth.signOut()}>Sign out</button>
-        </div>
-      </nav>
-      <div className="page">
-        {activeTab === 'dash'      && <Dashboard setActiveTab={setActiveTab} profile={profile} />}
-        {activeTab === 'upload'    && canUpload && <Upload setActiveTab={setActiveTab} profile={profile} />}
-        {activeTab === 'contracts' && <Contracts profile={profile} />}
-        {activeTab === 'settings'  && isAdmin && <Settings profile={profile} />}
       </div>
-    </div>
+    </DataProvider>
   )
 }
 

@@ -1,6 +1,7 @@
 // src/pages/Upload.jsx
 import { useState, useRef, useEffect } from 'react'
 import { supabase } from '../supabase'
+import { useData } from '../context/DataContext'
 import { formatValueAED, computeNoticeDeadline } from '../utils/helpers'
 
 const STEPS = [
@@ -10,27 +11,51 @@ const STEPS = [
   'Saving to database'
 ]
 
+const DRAFT_KEY = 'cv_upload_draft'
+
 export default function Upload({ setActiveTab, profile }) {
-  const [step, setStep]             = useState(-1)
-  const [extracted, setExtracted]   = useState(null)
+  const { loadUsers, users, addContract } = useData()
+  const [step, setStep]               = useState(-1)
+  const [extracted, setExtracted]     = useState(null)
   const [costSummary, setCostSummary] = useState(null)
   const [driveResult, setDriveResult] = useState(null)
-  const [filename, setFilename]     = useState('')
-  const [b64, setB64]               = useState('')
-  const [owner, setOwner]           = useState('')
-  const [recipients, setRecipients] = useState([])
-  const [saving, setSaving]         = useState(false)
-  const [saved, setSaved]           = useState(false)
-  const [error, setError]           = useState(null)
-  const [dragging, setDragging]     = useState(false)
-  const [users, setUsers]           = useState([])
+  const [filename, setFilename]       = useState('')
+  const [b64, setB64]                 = useState('')
+  const [owner, setOwner]             = useState('')
+  const [recipients, setRecipients]   = useState([])
+  const [saving, setSaving]           = useState(false)
+  const [saved, setSaved]             = useState(false)
+  const [error, setError]             = useState(null)
+  const [dragging, setDragging]       = useState(false)
   const fileRef = useRef()
 
   useEffect(() => {
-    supabase.from('cv_users').select('id, name, role').eq('status', 'active').then(({ data }) => setUsers(data || []))
-    // Pre-select current user as owner if they are an owner role
+    loadUsers()
     if (profile.role === 'owner') setOwner(profile.id)
+    // Restore draft if user navigated away mid-upload
+    try {
+      const draft = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null')
+      if (draft?.extracted) {
+        setExtracted(draft.extracted)
+        setStep(4)
+        if (draft.costSummary) setCostSummary(draft.costSummary)
+        if (draft.driveResult) setDriveResult(draft.driveResult)
+        if (draft.filename)    setFilename(draft.filename)
+        if (draft.b64)         setB64(draft.b64)
+        if (draft.owner && profile.role !== 'owner') setOwner(draft.owner)
+        if (draft.recipients)  setRecipients(draft.recipients)
+      }
+    } catch {}
   }, [])
+
+  // Save draft whenever extracted data or selections change
+  useEffect(() => {
+    if (extracted) {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({ extracted, costSummary, driveResult, filename, b64, owner, recipients }))
+    }
+  }, [extracted, owner, recipients])
+
+  const activeUsers = (users || []).filter(u => u.status === 'active' || !u.status)
 
   const toB64 = file => new Promise((res, rej) => {
     const r = new FileReader()
@@ -80,8 +105,7 @@ export default function Upload({ setActiveTab, profile }) {
         console.warn('Drive upload had an issue:', driveErr)
       }
 
-      // Save contract metadata to Supabase
-      const { error: dbErr } = await supabase.from('contracts').insert({
+      const { data: newContract, error: dbErr } = await supabase.from('contracts').insert({
         contract_name:   extracted.contractName,
         counterparty:    extracted.counterparty,
         contract_type:   extracted.contractType,
@@ -99,8 +123,11 @@ export default function Upload({ setActiveTab, profile }) {
         file_url:        fileUrl,
         file_path:       fileId,
         uploaded_by:     profile.id
-      })
+      }).select().single()
       if (dbErr) throw new Error(dbErr.message)
+
+      // Update shared context so other tabs see the new contract immediately
+      addContract(newContract)
 
       // Save usage record
       if (costSummary) {
@@ -114,6 +141,8 @@ export default function Upload({ setActiveTab, profile }) {
           estimated_pages: costSummary.estimatedPages
         })
       }
+
+      localStorage.removeItem(DRAFT_KEY)
       setSaved(true)
     } catch (e) {
       setError('Save failed: ' + e.message)
@@ -125,6 +154,7 @@ export default function Upload({ setActiveTab, profile }) {
     setStep(-1); setExtracted(null); setSaved(false); setB64(''); setFilename('')
     setError(null); setCostSummary(null); setDriveResult(null)
     setOwner(profile.role === 'owner' ? profile.id : ''); setRecipients([])
+    localStorage.removeItem(DRAFT_KEY)
     if (fileRef.current) fileRef.current.value = ''
   }
 
