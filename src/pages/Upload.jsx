@@ -105,7 +105,7 @@ export default function Upload({ setActiveTab, profile }) {
         console.warn('Drive upload had an issue:', driveErr)
       }
 
-      const { data: newContract, error: dbErr } = await supabase.from('contracts').insert({
+      const { data: insertedRows, error: dbErr } = await supabase.from('contracts').insert({
         contract_name:   extracted.contractName,
         counterparty:    extracted.counterparty,
         contract_type:   extracted.contractType,
@@ -123,11 +123,10 @@ export default function Upload({ setActiveTab, profile }) {
         file_url:        fileUrl,
         file_path:       fileId,
         uploaded_by:     profile.id
-      }).select().single()
+      }).select()
       if (dbErr) throw new Error(dbErr.message)
-
-      // Update shared context so other tabs see the new contract immediately
-      addContract(newContract)
+      const newContract = insertedRows?.[0]
+      if (newContract) addContract(newContract)
 
       // Save usage record
       if (costSummary) {
@@ -316,4 +315,5 @@ export default function Upload({ setActiveTab, profile }) {
     </div>
   )
 }
+
 
