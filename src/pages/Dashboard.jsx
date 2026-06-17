@@ -13,7 +13,7 @@ function StatusBadge({ contract }) {
 }
 
 export default function Dashboard({ setActiveTab, profile }) {
-  const { contracts, users, loadContracts, loadUsers, loadingContracts } = useData()
+  const { contracts, users, loadContracts, loadUsers, loadingContracts, contractsLoaded } = useData()
 
   useEffect(() => {
     loadContracts()
@@ -21,12 +21,12 @@ export default function Dashboard({ setActiveTab, profile }) {
   }, [])
 
   const isOwner   = profile.role === 'owner'
-  const visible   = (contracts || []).filter(c => !isOwner || c.owner_id === profile.id)
+  const visible   = contracts.filter(c => !isOwner || c.owner_id === profile.id)
   const urgent    = visible.filter(c => { const d = daysUntil(c.notice_deadline); return d !== null && d >= 0 && d <= 90 })
   const aedTotal  = Math.round(totalInAED(visible))
-  const ownerName = id => (users || []).find(u => u.id === id)?.name || '—'
+  const ownerName = id => users.find(u => u.id === id)?.name || '—'
 
-  if (loadingContracts || contracts === null) return <div className="empty-state"><span className="spin">⟳</span></div>
+  if (loadingContracts || !contractsLoaded) return <div className="empty-state"><span className="spin">⟳</span></div>
 
   return (
     <div>
@@ -105,3 +105,4 @@ export default function Dashboard({ setActiveTab, profile }) {
     </div>
   )
 }
+
