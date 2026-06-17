@@ -104,15 +104,16 @@ function AddUserPanel({ setSP }) {
       if (insertErr) throw new Error(insertErr.message)
 
       // Send magic link via Supabase Auth
-      const { error: authErr } = await supabase.auth.admin ? null : await supabase.auth.signInWithOtp({
-        email,
-        options: {
-          emailRedirectTo: window.location.origin,
-          data: { name, role }
-        }
-      })
+const { error: authErr } = await supabase.auth.signInWithOtp({
+  email,
+  options: {
+    emailRedirectTo: window.location.origin,
+    data: { name, role }
+  }
+})
 
-      setStatus({ ok:true, msg:`✓ ${name} added and sign-in link sent to ${email}` })
+      setStatus({ ok: true, msg: `✓ ${name} added and sign-in link sent to ${email}` })
+     
       setName(''); setEmail(''); setRole('owner')
     } catch (e) {
       setStatus({ ok:false, msg:'Error: ' + e.message })
